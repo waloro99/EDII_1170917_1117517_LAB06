@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
+using System.Numerics;
 
 namespace LAB06_ED2.Class
 {
@@ -72,6 +73,35 @@ namespace LAB06_ED2.Class
 
         //------------------------------------ PUBLIC FUNCTIONS -------------------------------------
 
+        //Method public for encode
+        public void Encode(string rPath, string wPath, string keyPath)
+        {
+            int[] data = File.ReadAllText(keyPath).Split(',').Select(int.Parse).ToArray();
+            int E = data[0];
+            int N = data[1];
+            using (var wfile = new FileStream(wPath, FileMode.OpenOrCreate))
+            using (var rfile = new FileStream(rPath, FileMode.Open))
+            using (var bw = new BinaryWriter(wfile))
+            using (var br = new BinaryReader(rfile))
+            {
+                int[] Buffer;     //buffer of 1024 bytes
+                List<byte> WriteBuffer = new List<byte>();
+
+                while (br.BaseStream.Position != br.BaseStream.Length)
+                {
+                    Buffer = br.ReadBytes(1024).Select(Convert.ToInt32).ToArray();
+                    WriteBuffer = new List<byte>();
+
+                    foreach (var item in Buffer)
+                    {
+                        int writeTo = (int)(BigInteger.Pow(item, E) % N); //Big integer
+                        WriteBuffer.AddRange(GBList(writeTo));
+                    }
+                    bw.Write(WriteBuffer.ToArray());
+                    bw.Flush();
+                }
+            }
+        }//End method for encode the algorithm RSA
 
 
         //------------------------------------ END PUBLIC FUNCTIONS ---------------------------------
@@ -133,6 +163,40 @@ namespace LAB06_ED2.Class
             //Recursive
             return GetD(L2, newL2, R2, newR2, PHI);
         }
+
+        //Methdo private for get byte the list in encode
+        private List<byte> GBList(int n)
+        {
+            List<byte> listR = new List<byte>();
+            if (n <= 255) listR.Add((byte)n);
+            else
+            {
+                double TotalBytes = Math.Ceiling((double)n / 255);
+                byte LastByte = (byte)(n % 255);
+
+                if (TotalBytes > 256)
+                {
+                    double FullBytes = Math.Ceiling((double)TotalBytes / 255);
+                    byte LastFullBytesByte = (byte)(TotalBytes % 255);
+
+                    //Adds the first part of the list
+                    listR = new List<byte>() { 63, 95, 59, 150, 33, 39, 92, LastByte, (byte)(LastFullBytesByte - 1) };
+
+                    //Adds n bytes in the middle of the list where n = FullBytes
+                    for (int i = 1; i < FullBytes; i++) listR.Add(255);
+
+                    //Adds the last part of the list
+                    listR.AddRange(new byte[] { 39, 41, 34, 46, 165, 175, 43 });
+                }
+                else
+                {
+                    return new List<byte>() { 63, 95, 59, 150, 33, 39, 92, LastByte, (byte)(TotalBytes - 1), 39, 41, 34, 46, 165, 175, 43 };
+                }
+
+            }
+            return listR;
+        }//End method for get byte list the encode
+
 
         //------------------------------------ END PRIVATE FUNCTIONS ---------------------------------
 
