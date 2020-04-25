@@ -103,6 +103,63 @@ namespace LAB06_ED2.Class
             }
         }//End method for encode the algorithm RSA
 
+        //Method public for decode the RSA
+        public void Decode(string rPath, string wPath, string keyPath)
+        {
+            int[] Values = File.ReadAllText(keyPath).Split(',').Select(int.Parse).ToArray();
+            int D = Values[0];
+            int N = Values[1];
+            using (var wfile = new FileStream(wPath, FileMode.OpenOrCreate))
+            using (var rfile = new FileStream(rPath, FileMode.Open))
+            using (var bw = new BinaryWriter(wfile))
+            using (var br = new BinaryReader(rfile))
+            {
+                List<int> Buffer = new List<int>();//buffer of 1024 bytes
+                List<byte> WriteBuffer = new List<byte>();
+
+
+                while (br.BaseStream.Position != br.BaseStream.Length)
+                {
+                    Buffer.AddRange(br.ReadBytes(1024).Select(Convert.ToInt32).ToList());
+                    WriteBuffer = new List<byte>();
+
+
+                    while (Buffer.Count > 0)
+                    {
+                        /*Multi bytes means that at the moment of doing *** (M^E) % N ***, it gave a result bigger than 255*/
+                        //If first int is equals to the first int of the sequence defined to work with multi bytes then....
+                        if (Buffer[0] == 63)
+                        {
+                            if (Buffer.Count < 17) break; //Breaks the current cicle to go and get next values in case that our sequence got splitted
+                            if (IsMultiBytes(Buffer.Take(7).ToArray()))//If matches our pattern write multi bytes character
+                            {
+                                int MultiByteSize = GSize(Buffer.ToList());
+                                BigInteger TST = (BigInteger.Pow(MBToInt(Buffer.Take(MultiByteSize).ToList()), D) % N);
+                                WriteBuffer.Add((byte)(BigInteger.Pow(MBToInt(Buffer.Take(MultiByteSize).ToList()), D) % N));
+                                Buffer = Buffer.Skip(9).ToList();/*How many to skip*/
+                            }
+                            else//else just write one
+                            {
+                                WriteBuffer.Add((byte)(BigInteger.Pow(Buffer[0], D) % N));
+                                Buffer.RemoveAt(0);
+                            }
+                        }
+                        else
+                        {
+                            WriteBuffer.Add((byte)(BigInteger.Pow(Buffer[0], D) % N));
+                            Buffer.RemoveAt(0);
+                        }
+                    }
+
+                    bw.Write(WriteBuffer.ToArray());
+                    bw.Flush();
+                }
+
+                /*if there are still items on the list*/
+
+
+            }
+        }//End method for decode the algorithm RSA
 
         //------------------------------------ END PUBLIC FUNCTIONS ---------------------------------
 
@@ -196,6 +253,47 @@ namespace LAB06_ED2.Class
             }
             return listR;
         }//End method for get byte list the encode
+
+        //method private for know is multi bytes the character
+        private bool IsMultiBytes(int[] values)
+        {
+            //If matches our 7 byte pattern
+            if (values[0] == 63 && values[1] == 95 &&
+                values[2] == 59 && values[3] == 150 &&
+                values[4] == 33 && values[5] == 39 &&
+                values[6] == 92) return true;
+            else return false;
+        }//end method IsMultiBytes
+
+        //Method private for get size the list
+        private int GSize(List<int> lst)
+        {
+            int Size = 9;
+            while (CEPattern(lst.Skip(Size - 1).Take(7).ToArray()))
+                Size++;
+            return Size + 7;
+        } //End method for get size
+
+        //Method private for test the last pattern
+        private bool CEPattern(int[] values)
+        {
+            //If matches our 7 byte pattern
+            if (values[0] == 39 && values[1] == 41 &&
+                values[2] == 34 && values[3] == 46 &&
+                values[4] == 165 && values[5] == 175 &&
+                values[6] == 43) return true;
+            else return false;
+        }//End method for check end pattern
+
+        //Method private for get multi bytes to int 
+        private BigInteger MBToInt(List<int> lst)
+        {
+            lst.RemoveRange(0, 7);
+            lst.RemoveRange(lst.Count() - 7, 7);
+            BigInteger TST = lst[0] + ((lst[1] + (lst.Count() - 2) * 255) * 255);
+            return lst[0] + ((lst[1] + (lst.Count() - 2) * 255) * 255);
+        }//End method for get multi bytes to integer
+
 
 
         //------------------------------------ END PRIVATE FUNCTIONS ---------------------------------
