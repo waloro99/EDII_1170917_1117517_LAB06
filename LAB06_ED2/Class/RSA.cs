@@ -39,6 +39,9 @@ namespace LAB06_ED2.Class
             }
         }//End Ivalid E D Exception
 
+        //data public key
+        public int n = 0;
+        public int e = 0;
 
         // Method builder
         public RSA()
@@ -58,6 +61,9 @@ namespace LAB06_ED2.Class
             int E = GetE(PHI, N);
             int D = GetD(PHI, E, PHI, 1, PHI);
 
+            //save public key 
+            n = N;
+            e = E;
             using (StreamWriter sw = new StreamWriter(new FileStream(PublicKeyPath, FileMode.Create)))
             {
                 sw.Write(E + "," + N);
